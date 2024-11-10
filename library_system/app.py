@@ -1,12 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for
-
+import os
+from flask import Flask, render_template, request, redirect, url_for,flash
+from mysql.connector import Error
 from library_system.db_connection import DatabaseConnection
 from services.book_service import BookService
 from services.user_service import UserService
 from services.borrowing_service import BorrowingService
 
 app = Flask(__name__)
-
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'root')
 @app.route('/')
 def index():
     book_service = BookService()
@@ -28,16 +29,24 @@ def add_book():
     
     return redirect(url_for('index'))
 
+
 @app.route('/add_user', methods=['POST'])
 def add_user():
     name = request.form['userName']
     email = request.form['email']
     membership_id = request.form['membershipID']
-    
+
     user_service = UserService()
-    user_service.add_user(name, email, membership_id)
-    
-    return redirect(url_for('index'))
+    try:
+        user_service.add_user(name, email, membership_id)
+        flash("User added successfully!", "success")  # Success message
+        return redirect(url_for('index'))
+    except Error as e:
+        if "Duplicate entry" in str(e):  # Check if it's a duplicate email error
+            flash("Error: Email already exists!", "error")  # Show error message
+        else:
+            flash(f"Error: {e}", "error")  # General error message
+        return redirect(url_for('index'))
 
 @app.route('/borrow_book', methods=['POST'])
 def borrow_book():
